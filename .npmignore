@@ -1,0 +1,39 @@
+# Source files (only dist is needed)
+src/
+tests/
+examples/
+
+# Config files
+tsconfig.json
+jest.config.mjs
+.eslintrc*
+.prettierrc*
+
+# Test files
+*.test.ts
+*.test.js
+test-*.ts
+test-*.js
+run-*.js
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Development files
+.git/
+.gitignore
+.vscode/
+.idea/
+*.log
+*.tgz
+
+# Build artifacts
+*.map
+
+# Documentation source
+docs/
+
+# Other
+test-n8n-compatibility.ts
+embeddings-service/
