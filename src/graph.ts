@@ -15,17 +15,14 @@ import { getDefaultRetrievalTool } from "./utils/retrieval.js";
 import { createToolRegistry } from "./utils/registry.js";
 
 export async function createAgent(input: CreateAgentInput) {
-  const { llm, tools, prompt, options = {}, store: userStore } = input;
+  const { llm, tools, prompt, options = {}, store } = input;
   const toolRegistry = createToolRegistry(tools);
   const {
     limit = 2,
     filter,
     namespace_prefix = ["tools"],
-    retrieve_tools_function = getDefaultRetrievalTool(namespace_prefix, limit, filter)
+    retrieve_tools_function = getDefaultRetrievalTool(namespace_prefix, limit, filter, store)
   } = options;
-  
-  // Use provided store if any
-  const store = userStore;
   
   // If store has indexTools method, call it to index the tools
   if (store && 'indexTools' in store && typeof store.indexTools === 'function') {

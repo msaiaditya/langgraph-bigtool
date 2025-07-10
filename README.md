@@ -13,6 +13,8 @@ Build LangGraph agents with large numbers of tools using dynamic tool selection.
 - 🎯 **Semantic Search** - Use vector stores to find the most relevant tools
 - 🔧 **Flexible Retrieval** - Customize how tools are discovered and retrieved
 - 📦 **LangGraph Compatible** - Built on top of LangGraph's proven architecture
+- 🚀 **No Native Dependencies** - MemoryVectorStore works in all environments
+- 🌐 **HTTP Embeddings** - Support for external embedding services
 
 ## Installation
 
@@ -93,11 +95,17 @@ const agent = await createAgent({
 });
 ```
 
+**Benefits:**
+- Works in all JavaScript environments (Node.js, browsers, serverless)
+- No native dependencies or build tools required
+- Suitable for up to thousands of tools
+- Easy deployment and debugging
+
 #### Option 2: HNSWLibStore (High performance - Requires Python and build tools)
 ```typescript
 import { HNSWLibStore, HTTPEmbeddings } from "langgraph-bigtool";
 
-// Create embeddings and store
+// Create embeddings and store  
 const embeddings = new HTTPEmbeddings({ serviceUrl: 'http://localhost:8001' });
 const store = new HNSWLibStore(embeddings);
 
@@ -108,6 +116,16 @@ const agent = await createAgent({
   store
 });
 ```
+
+**Benefits:**
+- High-performance HNSW algorithm
+- Better for very large tool sets (10,000+)
+- Faster search times for complex queries
+
+**Requirements:**
+- Python 3.x installed
+- C++ build tools
+- May have issues on Alpine Linux or serverless environments
 
 ### Using without a Store
 
@@ -253,20 +271,42 @@ const agent = await createAgent({
 
 ### HTTPEmbeddings
 
-HTTP-based embeddings client for environments where native dependencies are problematic (e.g., Alpine Linux):
+HTTP-based embeddings client for environments where native dependencies are problematic (e.g., Alpine Linux, serverless environments):
 
 ```typescript
 import { HTTPEmbeddings } from "langgraph-bigtool";
 
 const embeddings = new HTTPEmbeddings({ 
-  serviceUrl: 'http://localhost:8001' 
+  serviceUrl: 'http://localhost:8001' // Default value, can use env var EMBEDDINGS_SERVICE_URL
 });
 
 // Use with any vector store
-const store = new HNSWLibStore(embeddings);
+const store = new MemoryVectorStore(embeddings);
 ```
 
-The embeddings service uses sentence-transformers (all-MiniLM-L6-v2) and runs as a separate HTTP service.
+**Required Endpoints:**
+- `POST /embed` - Accepts `{ texts: string[] }` and returns `{ embeddings: number[][] }`
+- `GET /health` - Returns 200 OK when service is healthy
+
+The embeddings service should return vectors compatible with your model (e.g., 384 dimensions for all-MiniLM-L6-v2).
+
+## Testing
+
+### Running E2E Tests with MemoryVectorStore
+
+To test the MemoryVectorStore with HTTP embeddings:
+
+1. Start your embeddings service at `http://localhost:8001`
+2. Run the E2E test:
+   ```bash
+   ./run-e2e-test.sh
+   ```
+
+The test will verify:
+- Document indexing and storage
+- Semantic search functionality
+- Similarity scoring
+- Integration with HTTP embeddings
 
 ## Examples
 

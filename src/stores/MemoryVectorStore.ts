@@ -1,18 +1,15 @@
-import { BaseStore, Item, Operation, OperationResults } from "@langchain/langgraph";
+import { BaseStore, Operation, OperationResults } from "@langchain/langgraph";
 import { MemoryVectorStore as LangChainMemoryVectorStore } from "langchain/vectorstores/memory";
 import { Document } from "@langchain/core/documents";
 import { Embeddings } from "@langchain/core/embeddings";
 import type { ToolRegistry } from "../types.js";
+import type { Item, SearchItem } from "@langchain/langgraph-checkpoint";
 
 interface ToolData {
   tool_id: string;
   name: string;
   description: string;
   embedding?: number[];
-}
-
-interface SearchResult extends Item {
-  score: number;
 }
 
 /**
@@ -82,13 +79,13 @@ export class MemoryVectorStore extends BaseStore {
       offset?: number;
       query?: string;
     }
-  ): Promise<SearchResult[]> {
+  ): Promise<SearchItem[]> {
     const limit = options?.limit || 10;
     const query = options?.query || "";
     
     if (!query) {
       // No query, return all tools up to limit
-      const results: SearchResult[] = [];
+      const results: SearchItem[] = [];
       let count = 0;
       for (const [toolId, metadata] of this.toolMetadata) {
         if (count >= limit) break;
