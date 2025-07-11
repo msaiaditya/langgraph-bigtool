@@ -15,8 +15,9 @@ import { getDefaultRetrievalTool } from "./utils/retrieval.js";
 import { createToolRegistry } from "./utils/registry.js";
 
 export async function createAgent(input: CreateAgentInput) {
-  const { llm, tools, prompt, options = {}, store } = input;
+  const { llm, tools, defaultTools, prompt, options = {}, store } = input;
   const toolRegistry = createToolRegistry(tools);
+  const defaultToolRegistry = defaultTools ? createToolRegistry(defaultTools) : undefined;
   const {
     limit = 2,
     filter,
@@ -46,8 +47,11 @@ export async function createAgent(input: CreateAgentInput) {
     // The agent will always have at least retrieve_tools available
     const toolsToUse = selectedTools.length > 0 ? selectedTools : [];
     
-    // Always include the retrieve tool for tool calls
-    const allTools = [retrieveTool, ...toolsToUse];
+    // Get default tools if they exist
+    const defaultToolsList = defaultToolRegistry ? Object.values(defaultToolRegistry) : [];
+    
+    // Always include the retrieve tool and default tools for tool calls
+    const allTools = [retrieveTool, ...defaultToolsList, ...toolsToUse];
     
     // Create a ToolNode with the available tools
     const dynamicToolNode = new ToolNode(allTools);
@@ -63,6 +67,7 @@ export async function createAgent(input: CreateAgentInput) {
       ...config,
       model: llm,
       toolRegistry,
+      defaultToolRegistry,
       retrieveFunction: retrieve_tools_function,
       retrieveTool,
       limit,
@@ -80,6 +85,7 @@ export async function createAgent(input: CreateAgentInput) {
       ...config,
       model: llm,
       toolRegistry,
+      defaultToolRegistry,
       retrieveFunction: retrieve_tools_function,
       retrieveTool,
       limit,

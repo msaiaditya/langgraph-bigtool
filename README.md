@@ -15,6 +15,7 @@ Build LangGraph agents with large numbers of tools using dynamic tool selection.
 - 📦 **LangGraph Compatible** - Built on top of LangGraph's proven architecture
 - 🚀 **No Native Dependencies** - MemoryVectorStore works in all environments
 - 🌐 **HTTP Embeddings** - Support for external embedding services
+- ⚡ **Default Tools** - Specify tools that are always available without retrieval
 
 ## Installation
 
@@ -42,28 +43,48 @@ const weatherTool = tool(
   }
 );
 
-// Create tool registry (option 1: manual)
+const calculatorTool = tool(
+  async ({ operation, a, b }) => {
+    switch(operation) {
+      case "add": return a + b;
+      case "subtract": return a - b;
+      case "multiply": return a * b;
+      case "divide": return a / b;
+    }
+  },
+  {
+    name: "calculator",
+    description: "Basic calculator operations",
+    schema: z.object({
+      operation: z.enum(["add", "subtract", "multiply", "divide"]),
+      a: z.number(),
+      b: z.number()
+    })
+  }
+);
+
+// Create tool registries
 const toolRegistry = {
   get_weather: weatherTool,
-  // ... add more tools
+  // ... more tools that need to be discovered
 };
 
-// Or use helper function (option 2: from array)
-import { createToolRegistry } from "langgraph-bigtool";
-const tools = [weatherTool, calculatorTool];
-const toolRegistry = createToolRegistry(tools);
+const defaultTools = {
+  calculator: calculatorTool  // Always available without retrieval
+};
 
-// Create agent
+// Create agent with default tools
 const llm = new ChatOpenAI({ model: "gpt-4" });
 const agent = await createAgent({
   llm,
   tools: toolRegistry,
+  defaultTools,  // These tools are always available
   options: { limit: 2 }
 });
 
-// Use the agent
+// Use the agent - calculator is immediately available
 const result = await agent.invoke({
-  messages: [{ role: "user", content: "What's the weather in London?" }],
+  messages: [{ role: "user", content: "What's 15 + 27?" }],
   selected_tool_ids: []
 });
 ```
@@ -74,6 +95,42 @@ const result = await agent.invoke({
 2. **Tool Retrieval**: The agent has a special `retrieve_tools` tool that can search for relevant tools
 3. **Dynamic Loading**: When the agent needs tools, it searches for them and only loads the relevant ones
 4. **Execution**: The agent can then use the retrieved tools to complete the task
+
+## Default Tools
+
+Default tools are tools that are always available to the agent without needing to be retrieved. This is useful for:
+
+- **Common operations** that are frequently used (e.g., calculator, time/date functions)
+- **Utility tools** that support other operations (e.g., formatters, validators)
+- **Core functionality** that should always be accessible
+
+### How Default Tools Work
+
+```typescript
+const defaultTools = {
+  calculator: calculatorTool,
+  getCurrentTime: timeTool
+};
+
+const toolRegistry = {
+  weatherAPI: weatherTool,
+  databaseQuery: dbTool,
+  // ... hundreds more specialized tools
+};
+
+const agent = await createAgent({
+  llm,
+  tools: toolRegistry,      // Tools that need to be discovered
+  defaultTools,             // Always available, not indexed
+  store
+});
+```
+
+Key differences:
+- **Default tools** are always bound to the LLM alongside `retrieve_tools`
+- **Registry tools** must be discovered via semantic search before use
+- **Default tools** are not indexed in the vector store
+- Both can be used together in the same conversation
 
 ### Using with a Store (Recommended for large tool sets)
 
@@ -149,6 +206,7 @@ Creates a LangGraph agent with dynamic tool selection capabilities.
 - `input`: Configuration object with the following properties:
   - `llm`: A LangChain chat model that supports tool calling
   - `tools`: Tool registry object or array of tools
+  - `defaultTools?`: Optional tools that are always available without retrieval
   - `store?`: Optional BaseStore instance for tool search
   - `prompt?`: Optional system prompt
   - `options?`: Optional configuration
@@ -159,7 +217,10 @@ Creates a LangGraph agent with dynamic tool selection capabilities.
 
 **Returns:** A compiled LangGraph agent ready to use
 
-**Note:** The store parameter is optional. If you want semantic search for tools, provide a store instance (e.g., InMemoryStore or HNSWLibStore).
+**Notes:**
+- The store parameter is optional. If you want semantic search for tools, provide a store instance (e.g., InMemoryStore or HNSWLibStore).
+- Default tools are always available to the agent and are not indexed in the store.
+- Both `tools` and `defaultTools` can accept either an object or an array of tools.
 
 ### Helper Functions
 
@@ -217,6 +278,96 @@ const agent = await createAgent({
   }
 });
 ```
+
+### Combining Default Tools with Dynamic Retrieval
+
+Here's a complete example showing how to effectively use default tools alongside a large registry of specialized tools:
+
+```typescript
+import { createAgent, MemoryVectorStore, HTTPEmbeddings } from "langgraph-bigtool";
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
+
+// Default tools - always available, frequently used
+const defaultTools = {
+  // Basic calculator for common math operations
+  calculator: tool(
+    async ({ operation, a, b }) => {
+      const ops = { add: a + b, subtract: a - b, multiply: a * b, divide: a / b };
+      return `Result: ${ops[operation]}`;
+    },
+    {
+      name: "calculator",
+      description: "Basic calculator",
+      schema: z.object({
+        operation: z.enum(["add", "subtract", "multiply", "divide"]),
+        a: z.number(),
+        b: z.number()
+      })
+    }
+  ),
+  
+  // Current time utility
+  getCurrentTime: tool(
+    async () => new Date().toISOString(),
+    {
+      name: "getCurrentTime",
+      description: "Get current date and time",
+      schema: z.object({})
+    }
+  )
+};
+
+// Specialized tools - discovered via semantic search
+const specializedTools = {
+  // Advanced math operations
+  sqrt: createMathTool("sqrt", (x) => Math.sqrt(x)),
+  factorial: createMathTool("factorial", factorial),
+  fibonacci: createMathTool("fibonacci", fibonacci),
+  
+  // API tools
+  weatherAPI: createAPITool("weather", "Get weather data"),
+  stockAPI: createAPITool("stocks", "Get stock prices"),
+  newsAPI: createAPITool("news", "Get latest news"),
+  
+  // Database tools
+  queryUsers: createDBTool("users", "Query user database"),
+  queryOrders: createDBTool("orders", "Query orders database"),
+  
+  // ... potentially hundreds more specialized tools
+};
+
+// Set up vector store for semantic search
+const embeddings = new HTTPEmbeddings();
+const store = new MemoryVectorStore(embeddings);
+
+// Create agent with both default and specialized tools
+const agent = await createAgent({
+  llm: new ChatOpenAI({ model: "gpt-4" }),
+  tools: specializedTools,    // Large registry needing discovery
+  defaultTools,               // Always available basics
+  store,
+  options: { 
+    limit: 3  // Retrieve up to 3 specialized tools per search
+  }
+});
+
+// Example usage
+const result = await agent.invoke({
+  messages: [
+    { role: "user", content: "What's 25 + 17?" }, // Uses default calculator
+    { role: "assistant", content: "25 + 17 = 42" },
+    { role: "user", content: "Now find its square root" } // Needs to retrieve sqrt tool
+  ],
+  selected_tool_ids: []
+});
+```
+
+**Best Practices for Default Tools:**
+1. Keep default tools small and focused on common operations
+2. Include tools that are used across many different tasks
+3. Avoid making specialized or domain-specific tools default
+4. Consider performance - default tools are loaded for every request
 
 
 ### Vector Stores
@@ -312,6 +463,7 @@ The test will verify:
 
 See the `examples/` directory for complete examples:
 - `math.ts` - Mathematical operations with dynamic tool selection
+- `default-tools.ts` - Using default tools alongside retrievable tools
 - `custom-retrieval-store.ts` - Custom retrieval with keyword and embeddings search
 - `hnswlib-store.ts` - Using HNSWLibStore for high-performance vector search
 

@@ -14,8 +14,13 @@ export async function callModel(
     .map(id => bigToolConfig.toolRegistry[id])
     .filter(Boolean);
   
-  // Always include retrieve_tools
-  const tools = [bigToolConfig.retrieveTool, ...selectedTools];
+  // Get default tools if they exist
+  const defaultTools = bigToolConfig.defaultToolRegistry 
+    ? Object.values(bigToolConfig.defaultToolRegistry)
+    : [];
+  
+  // Always include retrieve_tools, default tools, and selected tools
+  const tools = [bigToolConfig.retrieveTool, ...defaultTools, ...selectedTools];
   
   // Bind tools to model
   if (!bigToolConfig.model.bindTools) {

@@ -46,6 +46,7 @@ export interface CreateAgentOptions {
 export interface CreateAgentInput {
   llm: BaseChatModel;
   tools: ToolInput;
+  defaultTools?: ToolInput;
   prompt?: string;
   options?: CreateAgentOptions;
   store?: BaseStore;
@@ -55,6 +56,7 @@ export interface BigToolConfig extends RunnableConfig {
   store?: BaseStore;
   model: BaseChatModel;
   toolRegistry: ToolRegistry;
+  defaultToolRegistry?: ToolRegistry;
   retrieveFunction: RetrieveToolsFunction;
   limit: number;
   filter?: Record<string, any>;
