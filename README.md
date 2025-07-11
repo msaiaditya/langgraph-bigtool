@@ -141,7 +141,10 @@ To enable semantic search over your tools, provide a store:
 import { MemoryVectorStore, HTTPEmbeddings } from "langgraph-bigtool";
 
 // Create embeddings and store
-const embeddings = new HTTPEmbeddings({ serviceUrl: 'http://localhost:8001' });
+const embeddings = new HTTPEmbeddings({ 
+  serviceUrl: 'http://localhost:8001',
+  verbose: true // Optional: enable performance logging
+});
 const store = new MemoryVectorStore(embeddings);
 
 // Tools are indexed automatically when creating the agent
@@ -428,11 +431,28 @@ HTTP-based embeddings client for environments where native dependencies are prob
 import { HTTPEmbeddings } from "langgraph-bigtool";
 
 const embeddings = new HTTPEmbeddings({ 
-  serviceUrl: 'http://localhost:8001' // Default value, can use env var EMBEDDINGS_SERVICE_URL
+  serviceUrl: 'http://localhost:8001', // Default value, can use env var EMBEDDINGS_SERVICE_URL
+  verbose: true // Enable performance logging (optional)
 });
 
 // Use with any vector store
 const store = new MemoryVectorStore(embeddings);
+```
+
+**Configuration Options:**
+- `serviceUrl` - URL of the embeddings service (defaults to `http://localhost:8001` or `EMBEDDINGS_SERVICE_URL` env var)
+- `verbose` - Enable performance logging to see embedding generation times (defaults to `false`)
+
+**Performance Monitoring:**
+When `verbose: true` is set, HTTPEmbeddings will log:
+- Total embedding generation time
+- Average time per document
+- Failed request timing information
+
+Example output:
+```
+[HTTPEmbeddings] Generated 8 embeddings in 164.28ms (20.53ms per document)
+[HTTPEmbeddings] Generated single query embedding in 13.09ms
 ```
 
 **Required Endpoints:**

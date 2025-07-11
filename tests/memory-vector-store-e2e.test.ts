@@ -10,8 +10,11 @@ describe("MemoryVectorStore E2E Tests", () => {
   let toolRegistry: ToolRegistry;
 
   beforeAll(async () => {
-    // Initialize HTTP embeddings with localhost service
-    embeddings = new HTTPEmbeddings({ serviceUrl: "http://localhost:8001" });
+    // Initialize HTTP embeddings with localhost service and verbose mode
+    embeddings = new HTTPEmbeddings({ 
+      serviceUrl: "http://localhost:8001",
+      verbose: true 
+    });
     
     // Check if embeddings service is running
     const isHealthy = await embeddings.checkHealth();
