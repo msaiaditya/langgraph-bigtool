@@ -31,11 +31,38 @@ export class MemoryVectorStore extends BaseStore {
   private embeddings: Embeddings;
   private vectorStore: LangChainMemoryVectorStore;
   private toolMetadata = new Map<string, ToolData>();
+  private verbose: boolean;
   
-  constructor(embeddings: Embeddings) {
+  constructor(embeddings: Embeddings, options?: { verbose?: boolean }) {
     super();
     this.embeddings = embeddings;
     this.vectorStore = new LangChainMemoryVectorStore(this.embeddings);
+    this.verbose = options?.verbose || false;
+  }
+  
+  /**
+   * Execute a function with performance logging
+   */
+  private async withPerformanceLogging<T>(
+    operation: string,
+    fn: () => Promise<T>,
+    getDetails?: (result: T) => string
+  ): Promise<T> {
+    if (!this.verbose) {
+      return fn();
+    }
+    
+    const startTime = performance.now();
+    const result = await fn();
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    const details = getDetails ? getDetails(result) : '';
+    console.info(
+      `[MemoryVectorStore] ${operation} completed in ${duration.toFixed(2)}ms${details ? ' - ' + details : ''}`
+    );
+    
+    return result;
   }
   
   /**
@@ -65,7 +92,11 @@ export class MemoryVectorStore extends BaseStore {
     });
     
     // Add documents to vector store
-    await this.vectorStore.addDocuments(documents);
+    await this.withPerformanceLogging(
+      'Indexing tools',
+      () => this.vectorStore.addDocuments(documents),
+      () => `${documents.length} tools indexed (${(documents.length).toFixed(0)} documents)`
+    );
   }
   
   /**
@@ -103,7 +134,11 @@ export class MemoryVectorStore extends BaseStore {
     }
     
     // Perform vector similarity search
-    const searchResults = await this.vectorStore.similaritySearchWithScore(query, limit);
+    const searchResults = await this.withPerformanceLogging(
+      'Vector similarity search',
+      () => this.vectorStore.similaritySearchWithScore(query, limit),
+      (results) => `found ${results.length} results for query: "${query}"`
+    );
     
     return searchResults.map(([doc, score]: [Document, number]) => ({
       value: this.toolMetadata.get(doc.metadata.tool_id) || {

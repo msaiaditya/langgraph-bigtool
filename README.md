@@ -145,7 +145,9 @@ const embeddings = new HTTPEmbeddings({
   serviceUrl: 'http://localhost:8001',
   verbose: true // Optional: enable performance logging
 });
-const store = new MemoryVectorStore(embeddings);
+const store = new MemoryVectorStore(embeddings, {
+  verbose: true // Optional: enable performance logging for vector operations
+});
 
 // Tools are indexed automatically when creating the agent
 const agent = await createAgent({
@@ -160,6 +162,11 @@ const agent = await createAgent({
 - No native dependencies or build tools required
 - Suitable for up to thousands of tools
 - Easy deployment and debugging
+
+**Performance Monitoring:**
+When `verbose: true` is set on MemoryVectorStore, it logs:
+- Tool indexing time: `[MemoryVectorStore] Indexing tools completed in XXXms - N tools indexed`
+- Search performance: `[MemoryVectorStore] Vector similarity search completed in XXXms - found N results for query: "..."`
 
 #### Option 2: HNSWLibStore (High performance - Requires Python and build tools)
 ```typescript
@@ -383,13 +390,22 @@ In-memory vector store that works in all environments without native dependencie
 import { createAgent, MemoryVectorStore, HTTPEmbeddings } from "langgraph-bigtool";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
-// Works with any embeddings provider
-const embeddings = new OpenAIEmbeddings({ model: "text-embedding-3-small" });
-// Or use HTTP embeddings
-const embeddings = new HTTPEmbeddings({ serviceUrl: 'http://localhost:8001' });
+// Option 1: OpenAI embeddings
+const openaiEmbeddings = new OpenAIEmbeddings({ 
+  model: "text-embedding-3-small",
+  apiKey: "your-api-key" // or use OPENAI_API_KEY env var
+});
 
-// Create store - no configuration needed
-const store = new MemoryVectorStore(embeddings);
+// Option 2: HTTP embeddings with verbose logging
+const httpEmbeddings = new HTTPEmbeddings({ 
+  serviceUrl: 'http://localhost:8001',
+  verbose: true 
+});
+
+// Create store with optional performance logging
+const store = new MemoryVectorStore(openaiEmbeddings, {
+  verbose: true // See indexing and search performance
+});
 
 // Create agent
 const agent = await createAgent({
