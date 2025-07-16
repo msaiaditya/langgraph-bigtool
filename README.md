@@ -14,6 +14,7 @@ Build LangGraph agents with large numbers of tools using dynamic tool selection.
 - 🔧 **Flexible Retrieval** - Customize how tools are discovered and retrieved
 - 📦 **LangGraph Compatible** - Built on top of LangGraph's proven architecture
 - 🚀 **No Native Dependencies** - MemoryVectorStore works in all environments
+- 🗄️ **Redis Support** - Production-ready persistent storage with intelligent caching
 - 🌐 **HTTP Embeddings** - Support for external embedding services
 - ⚡ **Default Tools** - Specify tools that are always available without retrieval
 
@@ -24,6 +25,8 @@ npm install langgraph-bigtool
 ```
 
 ## Quick Start
+
+> **Note**: For production use, we recommend using RedisStore for persistent vector storage. See the [Vector Stores](#vector-stores) section for details.
 
 ```typescript
 import { createAgent } from "langgraph-bigtool";
@@ -267,6 +270,31 @@ interface BigToolState {
 }
 ```
 
+### Available Exports
+
+```typescript
+import {
+  // Main function
+  createAgent,
+  
+  // Stores
+  MemoryVectorStore,
+  RedisStore,
+  HNSWLibStore,
+  
+  // Embeddings
+  HTTPEmbeddings,
+  
+  // Utilities
+  createToolRegistry,
+  
+  // Types
+  type ToolRegistry,
+  type BigToolState,
+  type RetrieveToolsFunction
+} from "langgraph-bigtool";
+```
+
 ## Advanced Usage
 
 ### Custom Tool Retrieval
@@ -382,12 +410,12 @@ const result = await agent.invoke({
 
 ### Vector Stores
 
-#### MemoryVectorStore (Recommended)
+#### RedisStore (Recommended for Production)
 
-In-memory vector store that works in all environments without native dependencies:
+Redis-based vector store with persistent storage, intelligent caching, and TTL support:
 
 ```typescript
-import { createAgent, MemoryVectorStore, HTTPEmbeddings } from "langgraph-bigtool";
+import { createAgent, RedisStore, HTTPEmbeddings } from "langgraph-bigtool";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 // Option 1: OpenAI embeddings
@@ -396,14 +424,89 @@ const openaiEmbeddings = new OpenAIEmbeddings({
   apiKey: "your-api-key" // or use OPENAI_API_KEY env var
 });
 
-// Option 2: HTTP embeddings with verbose logging
+// Option 2: HTTP embeddings (5-80x faster)
 const httpEmbeddings = new HTTPEmbeddings({ 
   serviceUrl: 'http://localhost:8001',
   verbose: true 
 });
 
+// Create Redis store with intelligent caching
+const store = new RedisStore({
+  redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
+  embeddings: httpEmbeddings,
+  indexName: "bigtool-tools",
+  ttlSeconds: 7 * 24 * 60 * 60, // 7 days
+  verbose: true // Enable performance logging
+});
+
+// Connect to Redis
+await store.connect();
+
+// Create agent - tools are indexed automatically
+const agent = await createAgent({
+  llm,
+  tools: toolRegistry,
+  store
+});
+
+// Don't forget to disconnect when done
+await store.disconnect();
+```
+
+**Benefits:**
+- Persistent vector storage across restarts
+- Intelligent caching avoids redundant embedding generation
+- TTL (Time To Live) for automatic cleanup
+- Batch operations for better performance
+- RedisInsight web UI for monitoring
+- Production-ready with connection pooling
+
+**Setup Redis:**
+```bash
+# Using Docker Compose (recommended)
+docker-compose up -d
+
+# Or using Docker directly
+docker run -d --name bigtool-redis -p 6379:6379 -p 8002:8001 redis/redis-stack:latest
+
+# Access RedisInsight at http://localhost:8002
+```
+
+**Example with caching:**
+```typescript
+// First run: generates embeddings
+await agent.invoke({
+  messages: [{ role: "user", content: "Calculate the square root of 16" }]
+});
+// Output: [RedisStore] New tools to index: 8, Already cached: 0
+
+// Second run: uses cached embeddings (much faster)
+await agent.invoke({
+  messages: [{ role: "user", content: "Find the cosine of 45 degrees" }]
+});
+// Output: [RedisStore] New tools to index: 0, Already cached: 8
+```
+
+See complete examples:
+- [`examples/redis-openai.ts`](examples/redis-openai.ts) - Full Redis + OpenAI setup
+- [`examples/redis-http-embeddings.ts`](examples/redis-http-embeddings.ts) - Redis + HTTP embeddings
+- [`examples/redis-http-quick-start.ts`](examples/redis-http-quick-start.ts) - Minimal Redis setup
+- [`examples/redis-embeddings-performance-comparison.ts`](examples/redis-embeddings-performance-comparison.ts) - Performance benchmarking
+
+#### MemoryVectorStore (Development/Testing)
+
+In-memory vector store that works in all environments without native dependencies:
+
+```typescript
+import { createAgent, MemoryVectorStore, HTTPEmbeddings } from "langgraph-bigtool";
+
+const embeddings = new HTTPEmbeddings({ 
+  serviceUrl: 'http://localhost:8001',
+  verbose: true 
+});
+
 // Create store with optional performance logging
-const store = new MemoryVectorStore(openaiEmbeddings, {
+const store = new MemoryVectorStore(embeddings, {
   verbose: true // See indexing and search performance
 });
 
@@ -502,6 +605,10 @@ See the `examples/` directory for complete examples:
 - `default-tools.ts` - Using default tools alongside retrievable tools
 - `custom-retrieval-store.ts` - Custom retrieval with keyword and embeddings search
 - `hnswlib-store.ts` - Using HNSWLibStore for high-performance vector search
+- `redis-openai.ts` - RedisStore with OpenAI embeddings and intelligent caching
+- `redis-http-embeddings.ts` - RedisStore with HTTP embeddings (no API key required)
+- `redis-http-quick-start.ts` - Minimal Redis setup example
+- `redis-embeddings-performance-comparison.ts` - Performance benchmarking of embeddings providers
 
 ## License
 
