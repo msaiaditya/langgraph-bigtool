@@ -29,6 +29,7 @@ export { createRetrieveToolsTool } from "./tools/retrieve.js";
 // Store exports
 export { HNSWLibStore } from "./stores/HNSWLibStore.js";
 export { MemoryVectorStore } from "./stores/MemoryVectorStore.js";
+export { RedisStore } from "./stores/RedisStore.js";
 
 // Embeddings exports
 export { HTTPEmbeddings } from "./embeddings/index.js";

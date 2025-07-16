@@ -1,6 +1,6 @@
 {
   "name": "langgraph-bigtool",
-  "version": "0.0.2",
+  "version": "0.0.2-beta.30",
   "description": "Build LangGraph agents with large numbers of tools",
   "type": "module",
   "main": "./dist/index.js",
@@ -47,15 +47,22 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
+    "test:redis": "jest tests/redis-store-e2e.test.ts",
+    "test:redis:ci": "docker-compose up -d redis && npm run test:redis && docker-compose down",
+    "test:redis:http": "jest tests/redis-http-embeddings.test.ts",
+    "test:redis:all": "jest tests/redis-*.test.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "@langchain/community": "^0.3.41",
-    "@langchain/core": "^0.3.46",
-    "@langchain/langgraph": "^0.2.72",
+    "@langchain/core": ">=0.3.0 <0.4.0",
+    "@langchain/langgraph": ">=0.2.0 <0.4.0",
+    "@langchain/redis": "^0.1.1",
+    "@types/redis": "^4.0.10",
     "langchain": "^0.3.23",
+    "redis": "^5.6.0",
     "uuid": "^10.0.0",
     "zod": "^3.23.0"
   },
@@ -79,6 +86,7 @@
     "jest": "^29.0.0",
     "prettier": "^3.0.0",
     "ts-jest": "^29.0.0",
+    "tsx": "^4.20.3",
     "typescript": "^5.0.0"
   },
   "keywords": [
