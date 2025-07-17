@@ -1,6 +1,6 @@
-# Redis Store with Vector Search
+# Redis Vector Base Store with Vector Search
 
-The `RedisStore` provides persistent vector storage for semantic tool search using Redis and Redis Vector Search capabilities.
+The `RedisVectorBaseStore` provides persistent vector storage for semantic tool search using Redis and Redis Vector Search capabilities.
 
 ## Features
 
@@ -27,14 +27,14 @@ docker-compose up -d redis
 ### 2. Basic Usage with OpenAI Embeddings
 
 ```typescript
-import { RedisStore } from "langgraph-bigtool";
+import { RedisVectorBaseStore } from "langgraph-bigtool";
 import { OpenAIEmbeddings } from "@langchain/openai";
 
 const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-small"
 });
 
-const store = new RedisStore({
+const store = new RedisVectorBaseStore({
   redisUrl: "redis://localhost:6379",
   embeddings,
   indexName: "my-tools",
@@ -52,19 +52,24 @@ const agent = await createAgent({
 });
 ```
 
-### 3. Using with HTTP Embeddings (No API Key Required)
+### 3. Using with Local Embeddings Service (No API Key Required)
 
 ```typescript
-import { RedisStore, HTTPEmbeddings } from "langgraph-bigtool";
+import { RedisVectorBaseStore } from "langgraph-bigtool";
+import { OpenAIEmbeddings } from "@langchain/openai";
 
 // Start embeddings service first:
 // cd embeddings-service && docker-compose up -d
 
-const embeddings = new HTTPEmbeddings({
-  serviceUrl: 'http://localhost:8001'
+const embeddings = new OpenAIEmbeddings({
+  model: "text-embedding-3-small", // Model name (ignored by local service)
+  apiKey: "not-needed", // Required by library but not used by local service
+  configuration: {
+    baseURL: 'http://localhost:8001/v1'
+  }
 });
 
-const store = new RedisStore({
+const store = new RedisVectorBaseStore({
   redisUrl: "redis://localhost:6379",
   embeddings,
   indexName: "my-tools"
@@ -85,7 +90,7 @@ const store = new RedisStore({
 
 ### Intelligent Caching
 
-The RedisStore uses SHA256 hashing to detect changes:
+The RedisVectorBaseStore uses SHA256 hashing to detect changes:
 
 1. When indexing tools, it creates a hash of each tool's name and description
 2. Before generating embeddings, it checks if the tool already exists with the same hash
@@ -160,7 +165,7 @@ npm run test:redis:all
 
 # Run specific test suites
 npm run test:redis        # OpenAI embeddings tests
-npm run test:redis:http   # HTTP embeddings tests
+npm run test:redis:http   # Local embeddings tests
 ```
 
 ## Examples
@@ -168,7 +173,7 @@ npm run test:redis:http   # HTTP embeddings tests
 See complete examples in the `examples/` directory:
 
 - `redis-openai.ts` - Full example with OpenAI embeddings
-- `redis-http-embeddings.ts` - Using HTTP embeddings service
+- `redis-http-embeddings.ts` - Using local embeddings service
 - `redis-http-quick-start.ts` - Minimal setup example
 
 ## Troubleshooting

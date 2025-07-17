@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, jest } from "@jest/globals";
-import { RedisStore } from "../src/stores/RedisStore.js";
-import { HTTPEmbeddings } from "../src/embeddings/index.js";
+import { RedisVectorBaseStore } from "../src/stores/RedisVectorBaseStore.js";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { createClient, RedisClientType } from "redis";
 import { createAgent } from "../src/index.js";
 import { ChatOpenAI } from "@langchain/openai";
@@ -9,38 +9,29 @@ import { z } from "zod";
 import { HumanMessage } from "@langchain/core/messages";
 import type { ToolRegistry } from "../src/types.js";
 
-describe("RedisStore with HTTPEmbeddings Tests", () => {
-  let store: RedisStore;
+describe("RedisVectorBaseStore with OpenAIEmbeddings Tests", () => {
+  let store: RedisVectorBaseStore;
   let redisClient: RedisClientType;
-  let embeddings: HTTPEmbeddings;
+  let embeddings: OpenAIEmbeddings;
   const testIndexName = "test-http-bigtool-tools";
   
   beforeAll(async () => {
-    // Initialize HTTP embeddings
-    embeddings = new HTTPEmbeddings({
-      serviceUrl: process.env.EMBEDDINGS_SERVICE_URL || 'http://localhost:8001'
+    // Initialize OpenAI embeddings
+    embeddings = new OpenAIEmbeddings({
+      apiKey: "not-needed",
+      configuration: { baseURL: 'http://localhost:8001/v1' }
     });
-    
-    // Check if embeddings service is available
-    const isHealthy = await embeddings.checkHealth();
-    if (!isHealthy) {
-      console.warn("⚠️  Skipping HTTP embeddings tests - service not available");
-      console.warn("   To run these tests, start the embeddings service:");
-      console.warn("   cd embeddings-service && docker-compose up -d");
-      return;
-    }
     
     // Setup Redis client for cleanup
     redisClient = createClient({ url: "redis://localhost:6379" });
     await redisClient.connect();
     
     // Initialize store with HTTP embeddings
-    store = new RedisStore({
+    store = new RedisVectorBaseStore({
       redisUrl: "redis://localhost:6379",
       embeddings,
       indexName: testIndexName,
       ttlSeconds: 60, // Short TTL for testing
-      verbose: false
     });
     
     await store.connect();
@@ -65,15 +56,8 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     await store.clearTools();
   });
   
-  it("should skip tests if embeddings service is not available", async () => {
-    if (!store) {
-      console.log("Test skipped - embeddings service not available");
-      expect(true).toBe(true);
-      return;
-    }
-  });
   
-  it("should index tools with HTTP embeddings", async () => {
+  it("should index tools with OpenAI embeddings", async () => {
     if (!store) return;
     
     const tools: ToolRegistry = {
@@ -81,7 +65,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
         async () => "test result",
         {
           name: "testTool",
-          description: "A test tool for HTTP embeddings",
+          description: "A test tool for OpenAI embeddings",
           schema: z.object({})
         }
       )
@@ -93,7 +77,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     spy.mockRestore();
   }, 30000);
   
-  it("should perform semantic search with HTTP embeddings", async () => {
+  it("should perform semantic search with OpenAI embeddings", async () => {
     if (!store) return;
     
     const tools: ToolRegistry = {
@@ -138,7 +122,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     expect(toolIds).toContain("stringUppercase");
   }, 30000);
   
-  it("should cache embeddings to avoid redundant HTTP calls", async () => {
+  it("should cache embeddings to avoid redundant calls", async () => {
     if (!store) return;
     
     const tools: ToolRegistry = {
@@ -165,7 +149,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     spy.mockRestore();
   }, 30000);
   
-  it("should work with createAgent using HTTP embeddings", async () => {
+  it("should work with createAgent using OpenAI embeddings", async () => {
     if (!store) return;
     
     const tools: ToolRegistry = {
@@ -208,7 +192,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
   it("should handle different embedding dimensions correctly", async () => {
     if (!store) return;
     
-    // The HTTP embeddings service should return consistent dimensions
+    // The OpenAI embeddings service should return consistent dimensions
     const testTexts = [
       "Short text",
       "A much longer text with many more words to embed",
@@ -229,7 +213,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     });
   }, 30000);
   
-  it("should maintain performance with HTTP embeddings", async () => {
+  it("should maintain performance with OpenAI embeddings", async () => {
     if (!store) return;
     
     const tools: ToolRegistry = {};
@@ -240,7 +224,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
         async () => `Result from tool ${i}`,
         {
           name: `tool_${i}`,
-          description: `This is tool number ${i} for performance testing with HTTP embeddings`
+          description: `This is tool number ${i} for performance testing with OpenAI embeddings`
         }
       );
     }
@@ -249,7 +233,7 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     await store.indexTools(tools);
     const indexTime = Date.now() - startTime;
     
-    console.log(`Indexed 10 tools with HTTP embeddings in ${indexTime}ms`);
+    console.log(`Indexed 10 tools with OpenAI embeddings in ${indexTime}ms`);
     
     // Should complete in reasonable time (allowing for network latency)
     expect(indexTime).toBeLessThan(10000); // 10 seconds max
@@ -267,15 +251,16 @@ describe("RedisStore with HTTPEmbeddings Tests", () => {
     expect(results.length).toBe(5);
   }, 30000);
   
-  it("should handle HTTP embeddings service errors gracefully", async () => {
+  it("should handle OpenAI embeddings service errors gracefully", async () => {
     if (!store) return;
     
     // Create a store with invalid embeddings URL
-    const badEmbeddings = new HTTPEmbeddings({
-      serviceUrl: 'http://localhost:9999' // Non-existent service
+    const badEmbeddings = new OpenAIEmbeddings({
+      apiKey: "not-needed",
+      configuration: { baseURL: 'http://localhost:9999/v1' } // Non-existent service
     });
     
-    const badStore = new RedisStore({
+    const badStore = new RedisVectorBaseStore({
       redisUrl: "redis://localhost:6379",
       embeddings: badEmbeddings,
       indexName: "test-bad-embeddings",

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createAgent } from "../src/index.js";
-import { RedisStore } from "../src/stores/RedisStore.js";
+import { RedisVectorBaseStore } from "../src/stores/RedisVectorBaseStore.js";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { ChatOpenAI } from "@langchain/openai";
 import { tool } from "@langchain/core/tools";
@@ -95,14 +95,14 @@ const mathTools: ToolRegistry = {
 };
 
 async function main() {
-  console.log("🚀 Redis Store with OpenAI Embeddings Demo\n");
+  console.log("🚀 Redis Vector Base Store with OpenAI Embeddings Demo\n");
   
   // Initialize embeddings and store
   const embeddings = new OpenAIEmbeddings({
     model: "text-embedding-3-small"
   });
   
-  const store = new RedisStore({
+  const store = new RedisVectorBaseStore({
     redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
     embeddings,
     indexName: "bigtool-math-tools",

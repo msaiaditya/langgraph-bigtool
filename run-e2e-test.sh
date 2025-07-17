@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🧪 Running MemoryVectorStore E2E Tests"
+echo "🧪 Running MemoryVectorBaseStore E2E Tests"
 echo "======================================"
 echo ""
 echo "Prerequisites:"

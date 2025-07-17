@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, jest } from "@jest/globals";
-import { RedisStore } from "../src/stores/RedisStore.js";
+import { RedisVectorBaseStore } from "../src/stores/RedisVectorBaseStore.js";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { createClient, RedisClientType } from "redis";
 import { createAgent } from "../src/index.js";
@@ -9,8 +9,8 @@ import { z } from "zod";
 import { HumanMessage } from "@langchain/core/messages";
 import type { ToolRegistry } from "../src/types.js";
 
-describe("RedisStore E2E Tests", () => {
-  let store: RedisStore;
+describe("RedisVectorBaseStore E2E Tests", () => {
+  let store: RedisVectorBaseStore;
   let redisClient: RedisClientType;
   const testIndexName = "test-bigtool-tools";
   
@@ -21,10 +21,11 @@ describe("RedisStore E2E Tests", () => {
     
     // Initialize store
     const embeddings = new OpenAIEmbeddings({
-      model: "text-embedding-3-small"
+      apiKey: "not-needed",
+      configuration: { baseURL: 'http://localhost:8001/v1' }
     });
     
-    store = new RedisStore({
+    store = new RedisVectorBaseStore({
       redisUrl: "redis://localhost:6379",
       embeddings,
       indexName: testIndexName,
@@ -186,10 +187,11 @@ describe("RedisStore E2E Tests", () => {
   
   it("should respect TTL settings", async () => {
     // Create store with 1 second TTL for testing
-    const shortTTLStore = new RedisStore({
+    const shortTTLStore = new RedisVectorBaseStore({
       redisUrl: "redis://localhost:6379",
       embeddings: new OpenAIEmbeddings({
-        model: "text-embedding-3-small"
+        apiKey: "not-needed",
+        configuration: { baseURL: 'http://localhost:8001/v1' }
       }),
       indexName: "test-ttl",
       ttlSeconds: 1

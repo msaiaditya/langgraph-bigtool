@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createAgent } from "../src/index.js";
-import { RedisStore } from "../src/stores/RedisStore.js";
-import { HTTPEmbeddings } from "../src/embeddings/index.js";
+import { RedisVectorBaseStore } from "../src/stores/RedisVectorBaseStore.js";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { ChatOpenAI } from "@langchain/openai";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
@@ -100,30 +100,18 @@ const stringTools: ToolRegistry = {
 };
 
 async function main() {
-  console.log("🚀 Redis Store with HTTP Embeddings Demo\n");
+  console.log("🚀 Redis Vector Base Store with HTTP Embeddings Demo\n");
   
-  // Initialize HTTP embeddings
-  const embeddings = new HTTPEmbeddings({
-    serviceUrl: process.env.EMBEDDINGS_SERVICE_URL || 'http://localhost:8001'
+  // Initialize OpenAI embeddings with custom URL
+  const embeddings = new OpenAIEmbeddings({
+    apiKey: "not-needed",
+    configuration: {
+      baseURL: 'http://localhost:8001/v1'
+    }
   });
   
-  // Check if embeddings service is available
-  console.log("🔍 Checking embeddings service health...");
-  const isHealthy = await embeddings.checkHealth();
-  
-  if (!isHealthy) {
-    console.error("\n⚠️  Embeddings service is not available!");
-    console.error("   Please ensure the embeddings service is running at http://localhost:8001");
-    console.error("   See the embeddings-service directory for setup instructions.");
-    console.error("\n   To start the service:");
-    console.error("   cd embeddings-service && docker-compose up -d\n");
-    return;
-  }
-  
-  console.log("✅ Embeddings service is healthy\n");
-  
   // Initialize Redis store with HTTP embeddings
-  const store = new RedisStore({
+  const store = new RedisVectorBaseStore({
     redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
     embeddings,
     indexName: "bigtool-string-tools",

@@ -1,34 +1,25 @@
-import { HTTPEmbeddings } from "../src/embeddings/http.js";
-import { MemoryVectorStore } from "../src/stores/MemoryVectorStore.js";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { MemoryVectorBaseStore } from "../src/stores/MemoryVectorBaseStore.js";
 import { ToolRegistry } from "../src/types.js";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 
-describe("MemoryVectorStore E2E Tests", () => {
-  let embeddings: HTTPEmbeddings;
-  let store: MemoryVectorStore;
+describe("MemoryVectorBaseStore E2E Tests", () => {
+  let embeddings: OpenAIEmbeddings;
+  let store: MemoryVectorBaseStore;
   let toolRegistry: ToolRegistry;
 
   beforeAll(async () => {
-    // Initialize HTTP embeddings with localhost service and verbose mode
-    embeddings = new HTTPEmbeddings({ 
-      serviceUrl: "http://localhost:8001",
-      verbose: true 
+    // Initialize OpenAI embeddings with localhost service
+    embeddings = new OpenAIEmbeddings({
+      apiKey: "not-needed",
+      configuration: { baseURL: 'http://localhost:8001/v1' }
     });
-    
-    // Check if embeddings service is running
-    const isHealthy = await embeddings.checkHealth();
-    if (!isHealthy) {
-      throw new Error(
-        "Embeddings service is not running. Please start the service at http://localhost:8001"
-      );
-    }
-    console.log("✓ Embeddings service is healthy");
   });
 
   beforeEach(() => {
     // Create a fresh store for each test
-    store = new MemoryVectorStore(embeddings);
+    store = new MemoryVectorBaseStore(embeddings);
     
     // Create test tool registry with diverse tools
     toolRegistry = {

@@ -6,6 +6,7 @@ import { createClient } from "redis";
 import { createHash } from "crypto";
 import type { ToolRegistry } from "../types.js";
 import type { Item, SearchItem } from "@langchain/langgraph-checkpoint";
+import { createToolDocument } from "../utils/registry.js";
 
 interface ToolData {
   tool_id: string;
@@ -30,10 +31,10 @@ interface RedisStoreConfig {
  * @example
  * ```typescript
  * import { OpenAIEmbeddings } from "@langchain/openai";
- * import { RedisStore } from "langgraph-bigtool";
+ * import { RedisVectorBaseStore } from "langgraph-bigtool";
  * 
  * const embeddings = new OpenAIEmbeddings({ model: 'text-embedding-3-small' });
- * const store = new RedisStore({
+ * const store = new RedisVectorBaseStore({
  *   redisUrl: 'redis://localhost:6379',
  *   embeddings,
  *   ttlSeconds: 7 * 24 * 60 * 60 // 7 days
@@ -44,7 +45,7 @@ interface RedisStoreConfig {
  * const agent = await createAgent({ llm, tools, store });
  * ```
  */
-export class RedisStore extends BaseStore {
+export class RedisVectorBaseStore extends BaseStore {
   private redisClient!: ReturnType<typeof createClient>;
   private vectorStore!: RedisVectorStore;
   private embeddings: Embeddings;
@@ -80,7 +81,7 @@ export class RedisStore extends BaseStore {
     this.isConnected = true;
     
     if (this.verbose) {
-      console.info(`[RedisStore] Connected to Redis at ${this.redisUrl}`);
+      console.info(`[RedisVectorBaseStore] Connected to Redis at ${this.redisUrl}`);
     }
   }
   
@@ -94,7 +95,7 @@ export class RedisStore extends BaseStore {
     this.isConnected = false;
     
     if (this.verbose) {
-      console.info(`[RedisStore] Disconnected from Redis`);
+      console.info(`[RedisVectorBaseStore] Disconnected from Redis`);
     }
   }
   
@@ -124,7 +125,7 @@ export class RedisStore extends BaseStore {
     
     const details = getDetails ? getDetails(result) : '';
     console.info(
-      `[RedisStore] ${operation} completed in ${duration.toFixed(2)}ms${details ? ' - ' + details : ''}`
+      `[RedisVectorBaseStore] ${operation} completed in ${duration.toFixed(2)}ms${details ? ' - ' + details : ''}`
     );
     
     return result;
@@ -178,15 +179,10 @@ export class RedisStore extends BaseStore {
       }
       
       if (shouldIndex) {
-        newTools.push(new Document({
-          pageContent: `${tool.name} ${tool.description || ""}`,
-          metadata: {
-            tool_id: toolId,
-            name: tool.name,
-            description: tool.description || "",
-            content_hash: contentHash
-          }
-        }));
+        const doc = createToolDocument(tool);
+        // Add content_hash to metadata
+        doc.metadata.content_hash = contentHash;
+        newTools.push(doc);
         
         // Add to update pipeline with TTL
         const metaKey = `bigtool:tools:meta:${toolId}`;
@@ -274,7 +270,7 @@ export class RedisStore extends BaseStore {
     await this.vectorStore.delete({ deleteAll: true });
     
     if (this.verbose) {
-      console.info(`[RedisStore] Cleared ${keys.length} tool metadata keys`);
+      console.info(`[RedisVectorBaseStore] Cleared ${keys.length} tool metadata keys`);
     }
   }
   

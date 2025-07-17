@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { RedisStore } from "../src/stores/RedisStore.js";
-import { HTTPEmbeddings } from "../src/embeddings/index.js";
+import { RedisVectorBaseStore } from "../src/stores/RedisVectorBaseStore.js";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
@@ -42,7 +41,7 @@ async function createTestTools(count: number): Promise<ToolRegistry> {
 }
 
 async function testEmbeddingsPerformance(
-  embeddings: HTTPEmbeddings | OpenAIEmbeddings,
+  embeddings: OpenAIEmbeddings,
   embeddingType: string,
   toolCount: number
 ): Promise<PerformanceMetrics> {
@@ -51,12 +50,11 @@ async function testEmbeddingsPerformance(
   console.log(`${'='.repeat(60)}\n`);
   
   // Create store
-  const store = new RedisStore({
+  const store = new RedisVectorBaseStore({
     redisUrl: "redis://localhost:6379",
     embeddings,
     indexName: `perf-test-${embeddingType.toLowerCase()}`,
     ttlSeconds: 300, // 5 minutes for testing
-    verbose: true
   });
   
   await store.connect();
@@ -136,22 +134,18 @@ async function testEmbeddingsPerformance(
 }
 
 async function main() {
-  console.log("🚀 Redis Store Performance Comparison: HTTP vs OpenAI Embeddings\n");
+  console.log("🚀 Redis Vector Base Store Performance Comparison: HTTP vs OpenAI Embeddings\n");
   
   const toolCounts = [10, 50, 100];
   const allMetrics: PerformanceMetrics[] = [];
   
-  // Check if services are available
-  const httpEmbeddings = new HTTPEmbeddings({
-    serviceUrl: 'http://localhost:8001'
+  // Create HTTP embeddings (pointing to local service)
+  const httpEmbeddings = new OpenAIEmbeddings({
+    apiKey: "not-needed",
+    configuration: {
+      baseURL: 'http://localhost:8001/v1'
+    }
   });
-  
-  const httpHealthy = await httpEmbeddings.checkHealth();
-  if (!httpHealthy) {
-    console.error("❌ HTTP Embeddings service not available");
-    console.error("   Run: cd embeddings-service && docker-compose up -d");
-    return;
-  }
   
   const openAIKey = process.env.OPENAI_API_KEY;
   if (!openAIKey) {

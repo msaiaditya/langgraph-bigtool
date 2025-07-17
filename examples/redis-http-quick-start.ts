@@ -4,8 +4,8 @@
  * This demonstrates the most basic setup without OpenAI dependency for embeddings
  */
 
-import { RedisStore } from "../src/stores/RedisStore.js";
-import { HTTPEmbeddings } from "../src/embeddings/index.js";
+import { RedisVectorBaseStore } from "../src/stores/RedisVectorBaseStore.js";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { ToolRegistry } from "../src/types.js";
@@ -13,22 +13,16 @@ import type { ToolRegistry } from "../src/types.js";
 async function main() {
   console.log("🚀 Redis + HTTP Embeddings Quick Start\n");
   
-  // 1. Initialize HTTP embeddings (no API key needed!)
-  const embeddings = new HTTPEmbeddings({
-    serviceUrl: 'http://localhost:8001'
+  // 1. Initialize OpenAI embeddings with custom URL (no API key needed!)
+  const embeddings = new OpenAIEmbeddings({
+    apiKey: "not-needed",
+    configuration: {
+      baseURL: 'http://localhost:8001/v1'
+    }
   });
   
-  // 2. Check if embeddings service is running
-  const isHealthy = await embeddings.checkHealth();
-  if (!isHealthy) {
-    console.error("❌ Embeddings service not available");
-    console.error("   Run: cd embeddings-service && docker-compose up -d");
-    return;
-  }
-  console.log("✅ Embeddings service is healthy");
-  
   // 3. Create Redis store with HTTP embeddings
-  const store = new RedisStore({
+  const store = new RedisVectorBaseStore({
     redisUrl: "redis://localhost:6379",
     embeddings,
     indexName: "quickstart-tools",

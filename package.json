@@ -1,6 +1,6 @@
 {
   "name": "langgraph-bigtool",
-  "version": "0.0.2-beta.31",
+  "version": "0.0.2-beta.32",
   "description": "Build LangGraph agents with large numbers of tools",
   "type": "module",
   "main": "./dist/index.js",
