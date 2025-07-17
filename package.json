@@ -51,6 +51,7 @@
     "test:redis:ci": "docker-compose up -d redis && npm run test:redis && docker-compose down",
     "test:redis:http": "jest tests/redis-http-embeddings.test.ts",
     "test:redis:all": "jest tests/redis-*.test.ts",
+    "test:stores": "jest tests/*redis*.test.ts",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run lint && npm run test && npm run build"
@@ -65,9 +66,6 @@
     "redis": "^5.6.0",
     "uuid": "^10.0.0",
     "zod": "^3.23.0"
-  },
-  "optionalDependencies": {
-    "hnswlib-node": "^3.0.0"
   },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0 <0.4.0",

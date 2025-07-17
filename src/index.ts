@@ -27,10 +27,6 @@ export { shouldContinue } from "./nodes/routing.js";
 export { createRetrieveToolsTool } from "./tools/retrieve.js";
 
 // Store exports
-export { HNSWLibStore } from "./stores/HNSWLibStore.js";
-export { MemoryVectorStore } from "./stores/MemoryVectorStore.js";
-export { RedisStore } from "./stores/RedisStore.js";
-
-// Embeddings exports
-export { HTTPEmbeddings } from "./embeddings/index.js";
-export type { HTTPEmbeddingsConfig, EmbeddingsResponse } from "./embeddings/index.js";
+export { MemoryVectorBaseStore } from "./stores/MemoryVectorBaseStore.js";
+export { RedisVectorBaseStore } from "./stores/RedisVectorBaseStore.js";
+export { RedisCachedMemoryVectorBaseStore } from "./stores/RedisCachedMemoryVectorBaseStore.js";
