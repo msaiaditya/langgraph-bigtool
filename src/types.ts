@@ -1,5 +1,9 @@
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
-import { StructuredTool, Tool, DynamicStructuredTool } from "@langchain/core/tools";
+import {
+  StructuredTool,
+  Tool,
+  DynamicStructuredTool,
+} from "@langchain/core/tools";
 import { BaseStore } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
@@ -7,7 +11,7 @@ import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 // Custom reducer for tool IDs - adds new IDs without duplicates
 export const addNew = (left: string[], right: string[]) => {
   const existing = new Set(left);
-  const newIds = right.filter(id => !existing.has(id));
+  const newIds = right.filter((id) => !existing.has(id));
   return [...left, ...newIds];
 };
 
@@ -17,15 +21,20 @@ export const BigToolAnnotation = Annotation.Root({
   ...MessagesAnnotation.spec,
   selected_tool_ids: Annotation<string[]>({
     reducer: addNew,
-    default: () => []
-  })
+    default: () => [],
+  }),
 });
 
 export type BigToolState = typeof BigToolAnnotation.State;
 
-export type ToolRegistry = Record<string, StructuredTool | Tool | DynamicStructuredTool>;
+export type ToolRegistry = Record<
+  string,
+  StructuredTool | Tool | DynamicStructuredTool
+>;
 
-export type ToolInput = ToolRegistry | (StructuredTool | Tool | DynamicStructuredTool)[];
+export type ToolInput =
+  | ToolRegistry
+  | (StructuredTool | Tool | DynamicStructuredTool)[];
 
 export type RetrieveToolsFunction = (
   query: string,
@@ -62,4 +71,8 @@ export interface BigToolConfig extends RunnableConfig {
   filter?: Record<string, any>;
   retrieveTool: any; // Simplified to avoid type issues
   systemPrompt?: string;
+}
+
+export interface WorkflowOptions {
+  handleToolErrors?: boolean;
 }
