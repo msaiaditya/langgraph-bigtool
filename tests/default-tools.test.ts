@@ -2,23 +2,21 @@ import { describe, it, expect, beforeEach } from "@jest/globals";
 import { createAgent } from "../src/index.js";
 import { InMemoryStore } from "@langchain/langgraph";
 import { tool } from "@langchain/core/tools";
-import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
-import { ToolRegistry } from "../src/types.js";
 
 // Mock OpenAI to avoid API calls
 jest.mock("@langchain/openai", () => ({
   ChatOpenAI: jest.fn().mockImplementation(() => ({
-    bindTools: jest.fn().mockImplementation((tools) => ({
+    bindTools: jest.fn().mockImplementation((_tools) => ({
       invoke: jest.fn().mockResolvedValue(
         new AIMessage({
           content: "Test response",
-          tool_calls: []
+          tool_calls: [],
         })
-      )
-    }))
-  }))
+      ),
+    })),
+  })),
 }));
 
 describe("Default Tools Feature", () => {
@@ -30,7 +28,7 @@ describe("Default Tools Feature", () => {
 
   beforeEach(() => {
     store = new InMemoryStore();
-    
+
     // Create a mock LLM that tracks tool bindings
     const boundTools: any[] = [];
     mockLLM = {
@@ -41,50 +39,41 @@ describe("Default Tools Feature", () => {
           invoke: jest.fn().mockResolvedValue(
             new AIMessage({
               content: "Test response",
-              tool_calls: []
+              tool_calls: [],
             })
           ),
-          _boundTools: boundTools
+          _boundTools: boundTools,
         };
-      })
+      }),
     };
 
     // Create test tools
-    addTool = tool(
-      async ({ a, b }) => `${a} + ${b} = ${a + b}`,
-      {
-        name: "add",
-        description: "Add two numbers",
-        schema: z.object({
-          a: z.number(),
-          b: z.number()
-        })
-      }
-    );
+    addTool = tool(async ({ a, b }) => `${a} + ${b} = ${a + b}`, {
+      name: "add",
+      description: "Add two numbers",
+      schema: z.object({
+        a: z.number(),
+        b: z.number(),
+      }),
+    });
 
-    multiplyTool = tool(
-      async ({ a, b }) => `${a} * ${b} = ${a * b}`,
-      {
-        name: "multiply",
-        description: "Multiply two numbers",
-        schema: z.object({
-          a: z.number(),
-          b: z.number()
-        })
-      }
-    );
+    multiplyTool = tool(async ({ a, b }) => `${a} * ${b} = ${a * b}`, {
+      name: "multiply",
+      description: "Multiply two numbers",
+      schema: z.object({
+        a: z.number(),
+        b: z.number(),
+      }),
+    });
 
-    subtractTool = tool(
-      async ({ a, b }) => `${a} - ${b} = ${a - b}`,
-      {
-        name: "subtract",
-        description: "Subtract two numbers",
-        schema: z.object({
-          a: z.number(),
-          b: z.number()
-        })
-      }
-    );
+    subtractTool = tool(async ({ a, b }) => `${a} - ${b} = ${a - b}`, {
+      name: "subtract",
+      description: "Subtract two numbers",
+      schema: z.object({
+        a: z.number(),
+        b: z.number(),
+      }),
+    });
   });
 
   it("should include default tools in agent without retrieval", async () => {
@@ -92,32 +81,32 @@ describe("Default Tools Feature", () => {
     const registryTools = { multiply: multiplyTool, subtract: subtractTool };
 
     // Index registry tools
-    await store.put(["tools"], "multiply", { 
+    await store.put(["tools"], "multiply", {
       tool_id: "multiply",
-      description: "Multiply two numbers"
+      description: "Multiply two numbers",
     });
-    
-    await store.put(["tools"], "subtract", { 
+
+    await store.put(["tools"], "subtract", {
       tool_id: "subtract",
-      description: "Subtract two numbers"
+      description: "Subtract two numbers",
     });
 
     const agent = await createAgent({
       llm: mockLLM,
       tools: registryTools,
       defaultTools,
-      store
+      store,
     });
 
     // Invoke agent to trigger tool binding
     await agent.invoke({
       messages: [new HumanMessage("Test message")],
-      selected_tool_ids: []
+      selected_tool_ids: [],
     });
 
     // Verify bindTools was called
     expect(mockLLM.bindTools).toHaveBeenCalled();
-    
+
     // Get the tools that were bound
     const boundModel = mockLLM.bindTools.mock.results[0].value;
     const boundTools = boundModel._boundTools;
@@ -138,13 +127,13 @@ describe("Default Tools Feature", () => {
       llm: mockLLM,
       tools: registryTools,
       defaultTools,
-      store
+      store,
     });
 
     // Invoke with selected tools
     await agent.invoke({
       messages: [new HumanMessage("Test message")],
-      selected_tool_ids: ["multiply"]
+      selected_tool_ids: ["multiply"],
     });
 
     // Get the tools that were bound
@@ -165,12 +154,12 @@ describe("Default Tools Feature", () => {
     const agent = await createAgent({
       llm: mockLLM,
       tools: registryTools,
-      store
+      store,
     });
 
     await agent.invoke({
       messages: [new HumanMessage("Test message")],
-      selected_tool_ids: []
+      selected_tool_ids: [],
     });
 
     const boundModel = mockLLM.bindTools.mock.results[0].value;
@@ -185,9 +174,9 @@ describe("Default Tools Feature", () => {
   });
 
   it("should handle multiple default tools", async () => {
-    const defaultTools = { 
+    const defaultTools = {
       add: addTool,
-      subtract: subtractTool 
+      subtract: subtractTool,
     };
     const registryTools = { multiply: multiplyTool };
 
@@ -195,12 +184,12 @@ describe("Default Tools Feature", () => {
       llm: mockLLM,
       tools: registryTools,
       defaultTools,
-      store
+      store,
     });
 
     await agent.invoke({
       messages: [new HumanMessage("Test message")],
-      selected_tool_ids: []
+      selected_tool_ids: [],
     });
 
     const boundModel = mockLLM.bindTools.mock.results[0].value;
@@ -222,12 +211,12 @@ describe("Default Tools Feature", () => {
       llm: mockLLM,
       tools: registryTools,
       defaultTools,
-      store
+      store,
     });
 
     await agent.invoke({
       messages: [new HumanMessage("Test message")],
-      selected_tool_ids: []
+      selected_tool_ids: [],
     });
 
     const boundModel = mockLLM.bindTools.mock.results[0].value;
