@@ -7,6 +7,7 @@ import {
 import { BaseStore } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
 
 // Custom reducer for tool IDs - adds new IDs without duplicates
 export const addNew = (left: string[], right: string[]) => {
@@ -22,6 +23,10 @@ export const BigToolAnnotation = Annotation.Root({
   selected_tool_ids: Annotation<string[]>({
     reducer: addNew,
     default: () => [],
+  }),
+  scratchpad: Annotation<Record<string, any>>({
+    reducer: (left, right) => ({ ...left, ...right }),
+    default: () => ({}),
   }),
 });
 
@@ -59,6 +64,7 @@ export interface CreateAgentInput {
   prompt?: string;
   options?: CreateAgentOptions;
   store?: BaseStore;
+  checkpointer?: BaseCheckpointSaver;
 }
 
 export interface BigToolConfig extends RunnableConfig {

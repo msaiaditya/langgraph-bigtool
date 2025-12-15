@@ -1,6 +1,7 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { RunnableConfig } from "@langchain/core/runnables";
+import { AIMessage, ToolMessage } from "@langchain/core/messages";
+import { StructuredToolInterface } from "@langchain/core/tools";
 import {
   BigToolAnnotation,
   BigToolState,
@@ -14,12 +15,16 @@ import { shouldContinue } from "./nodes/routing.js";
 import { createRetrieveToolsTool } from "./tools/retrieve.js";
 import { getDefaultRetrievalTool } from "./utils/retrieval.js";
 import { createToolRegistry } from "./utils/registry.js";
+import { SCRATCHPAD_UPDATE_SYMBOL } from "./utils/constants.js";
+
+// Marker used to identify scratchpad update requests from tools
+const SCRATCHPAD_MARKER = "__SCRATCHPAD_UPDATE__";
 
 export async function createAgent(
   input: CreateAgentInput,
   workflowOptions: WorkflowOptions = {}
 ) {
-  const { llm, tools, defaultTools, prompt, options = {}, store } = input;
+  const { llm, tools, defaultTools, prompt, options = {}, store, checkpointer } = input;
   const toolRegistry = createToolRegistry(tools);
   const defaultToolRegistry = defaultTools
     ? createToolRegistry(defaultTools)
@@ -54,15 +59,20 @@ export async function createAgent(
     toolRegistry
   );
 
-  // Create a custom tool node that only uses selected tools
+  // Custom tool node that executes tools SEQUENTIALLY with scratchpad state updates
+  // between each tool. This ensures Tool B can see Tool A's scratchpad writes.
+  // 
+  // ARCHITECTURE: Single State Source of Truth
+  // - Scratchpad is managed entirely within LangGraph state
+  // - No external mutable containers needed
+  // - Each tool receives the current scratchpad via config.configurable.scratchpad
+  // - Tool returns marker → we update scratchpad → next tool sees the update
   const toolNode = async (state: BigToolState, config: RunnableConfig) => {
     // Get only the selected tools from the registry
     const selectedTools = state.selected_tool_ids
       .map((id) => toolRegistry[id])
       .filter(Boolean);
 
-    // If no tools are selected, we still need to handle tool calls
-    // The agent will always have at least retrieve_tools available
     const toolsToUse = selectedTools.length > 0 ? selectedTools : [];
 
     // Get default tools if they exist
@@ -70,16 +80,125 @@ export async function createAgent(
       ? Object.values(defaultToolRegistry)
       : [];
 
-    // Always include the retrieve tool and default tools for tool calls
-    const allTools = [retrieveTool, ...defaultToolsList, ...toolsToUse];
+    // All available tools (retrieve + defaults + selected)
+    const allTools: StructuredToolInterface[] = [
+      retrieveTool,
+      ...defaultToolsList,
+      ...toolsToUse,
+    ];
 
-    // Create a ToolNode with the available tools
-    const dynamicToolNode = new ToolNode(allTools, {
-      handleToolErrors: workflowOptions.handleToolErrors ?? false,
-    });
+    // Create a map for quick tool lookup
+    const toolMap = new Map<string, StructuredToolInterface>();
+    for (const tool of allTools) {
+      toolMap.set(tool.name, tool);
+    }
 
-    // Execute the tool node
-    return dynamicToolNode.invoke(state, config);
+    // Get tool calls from the last message
+    const lastMessage = state.messages[state.messages.length - 1];
+    const toolCalls =
+      lastMessage && "_getType" in lastMessage && lastMessage._getType() === "ai"
+        ? (lastMessage as AIMessage).tool_calls || []
+        : [];
+
+    if (toolCalls.length === 0) {
+      return { messages: [] };
+    }
+
+    // SEQUENTIAL EXECUTION: Execute tools one by one, updating scratchpad between each
+    let currentScratchpad: Record<string, any> = { ...(state.scratchpad || {}) };
+    const resultMessages: ToolMessage[] = [];
+
+    for (const toolCall of toolCalls) {
+      const tool = toolMap.get(toolCall.name);
+
+      if (!tool) {
+        // Tool not found - create error message
+        resultMessages.push(
+          new ToolMessage({
+            content: `Tool "${toolCall.name}" not found`,
+            tool_call_id: toolCall.id || "",
+            name: toolCall.name,
+          })
+        );
+        continue;
+      }
+
+      try {
+        // Execute tool with CURRENT scratchpad state
+        const toolConfig: RunnableConfig = {
+          ...config,
+          configurable: {
+            ...config.configurable,
+            scratchpad: currentScratchpad, // Each tool sees up-to-date scratchpad
+          },
+        };
+
+        const rawResult = await tool.invoke(toolCall.args, toolConfig);
+
+        // Parse result to check for scratchpad updates
+        let parsedResult: any = rawResult;
+        if (typeof rawResult === "string") {
+          try {
+            parsedResult = JSON.parse(rawResult);
+          } catch {
+            // Not JSON, use as-is
+          }
+        }
+
+        // Check if this is a scratchpad update marker
+        const isScratchpadUpdate =
+          parsedResult &&
+          typeof parsedResult === "object" &&
+          (parsedResult[SCRATCHPAD_UPDATE_SYMBOL] === true ||
+            parsedResult[SCRATCHPAD_MARKER] === true);
+
+        if (isScratchpadUpdate && parsedResult.updates) {
+          // IMMEDIATELY update scratchpad so next tool sees it
+          currentScratchpad = { ...currentScratchpad, ...parsedResult.updates };
+
+          // Create confirmation message for LLM
+          resultMessages.push(
+            new ToolMessage({
+              content: `Scratchpad updated: ${Object.keys(parsedResult.updates).join(", ")}`,
+              tool_call_id: toolCall.id || "",
+              name: toolCall.name,
+            })
+          );
+        } else {
+          // Normal tool result
+          const content =
+            typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult);
+          resultMessages.push(
+            new ToolMessage({
+              content,
+              tool_call_id: toolCall.id || "",
+              name: toolCall.name,
+            })
+          );
+        }
+      } catch (error: any) {
+        // Handle tool errors based on workflowOptions
+        const errorMessage = error?.message || String(error);
+        if (workflowOptions.handleToolErrors) {
+          resultMessages.push(
+            new ToolMessage({
+              content: `Error: ${errorMessage}`,
+              tool_call_id: toolCall.id || "",
+              name: toolCall.name,
+            })
+          );
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // Return updated messages and scratchpad
+    // LangGraph's reducer will merge scratchpad updates into state
+    return {
+      messages: resultMessages,
+      scratchpad: currentScratchpad,
+    };
   };
 
   // Create a custom call model that includes config
@@ -138,6 +257,12 @@ export async function createAgent(
     .addEdge("select_tools", "agent")
     .addEdge("tools", "agent");
 
-  // Compile with or without store
-  return store ? workflow.compile({ store }) : workflow.compile();
+  // Compile with checkpointer, store, or both
+  // Both store and checkpointer can be used together - they serve different purposes:
+  // - store: For vector storage of tools (semantic search)
+  // - checkpointer: For graph state persistence (conversation memory, error recovery)
+  return workflow.compile({
+    ...(store && { store }),
+    ...(checkpointer && { checkpointer }),
+  });
 }

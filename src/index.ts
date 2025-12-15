@@ -13,10 +13,14 @@ export type {
   BigToolConfig
 } from "./types.js";
 
+// Re-export checkpointer type for convenience
+export type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
+
 // Utility exports
 export { getDefaultRetrievalTool } from "./utils/retrieval.js";
 export { formatToolDescriptions } from "./utils/formatting.js";
 export { createToolRegistry } from "./utils/registry.js";
+export { SCRATCHPAD_UPDATE_SYMBOL } from "./utils/constants.js";
 
 // Node exports (for advanced usage)
 export { callModel } from "./nodes/agent.js";
