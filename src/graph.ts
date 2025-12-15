@@ -257,10 +257,6 @@ export async function createAgent(
     .addEdge("select_tools", "agent")
     .addEdge("tools", "agent");
 
-  // Compile with checkpointer, store, or both
-  // Both store and checkpointer can be used together - they serve different purposes:
-  // - store: For vector storage of tools (semantic search)
-  // - checkpointer: For graph state persistence (conversation memory, error recovery)
   return workflow.compile({
     ...(store && { store }),
     ...(checkpointer && { checkpointer }),
