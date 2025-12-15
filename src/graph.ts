@@ -59,14 +59,7 @@ export async function createAgent(
     toolRegistry
   );
 
-  // Custom tool node that executes tools SEQUENTIALLY with scratchpad state updates
-  // between each tool. This ensures Tool B can see Tool A's scratchpad writes.
-  // 
-  // ARCHITECTURE: Single State Source of Truth
-  // - Scratchpad is managed entirely within LangGraph state
-  // - No external mutable containers needed
-  // - Each tool receives the current scratchpad via config.configurable.scratchpad
-  // - Tool returns marker → we update scratchpad → next tool sees the update
+
   const toolNode = async (state: BigToolState, config: RunnableConfig) => {
     // Get only the selected tools from the registry
     const selectedTools = state.selected_tool_ids
