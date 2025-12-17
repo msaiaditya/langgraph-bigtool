@@ -24,10 +24,10 @@ export const BigToolAnnotation = Annotation.Root({
     reducer: addNew,
     default: () => [],
   }),
-  // scratchpad: Annotation<Record<string, any>>({
-  //   reducer: (left, right) => ({ ...left, ...right }),
-  //   default: () => ({}),
-  // }),
+  scratchpad: Annotation<Record<string, any>>({
+    reducer: (left, right) => ({ ...left, ...right }),
+    default: () => ({}),
+  }),
 });
 
 export type BigToolState = typeof BigToolAnnotation.State;
