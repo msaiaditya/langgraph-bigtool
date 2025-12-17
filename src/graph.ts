@@ -19,7 +19,7 @@ export async function createAgent(
   input: CreateAgentInput,
   workflowOptions: WorkflowOptions = {}
 ) {
-  const { llm, tools, defaultTools, prompt, options = {}, store } = input;
+  const { llm, tools, defaultTools, prompt, options = {}, store, checkpointer } = input;
   const toolRegistry = createToolRegistry(tools);
   const defaultToolRegistry = defaultTools
     ? createToolRegistry(defaultTools)
@@ -138,6 +138,16 @@ export async function createAgent(
     .addEdge("select_tools", "agent")
     .addEdge("tools", "agent");
 
-  // Compile with or without store
-  return store ? workflow.compile({ store }) : workflow.compile();
+  // Compile with store and/or checkpointer
+  const compileOptions: any = {};
+  if (store) {
+    compileOptions.store = store;
+  }
+  if (checkpointer) {
+    compileOptions.checkpointer = checkpointer;
+  }
+  
+  return Object.keys(compileOptions).length > 0 
+    ? workflow.compile(compileOptions) 
+    : workflow.compile();
 }

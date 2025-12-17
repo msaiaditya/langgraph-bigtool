@@ -15,7 +15,8 @@ export const addNew = (left: string[], right: string[]) => {
   return [...left, ...newIds];
 };
 
-// Extend MessagesAnnotation with selected tools
+// Extend MessagesAnnotation with selected tools and scratchpad
+// Scratchpad is managed by LangGraph state and persisted via checkpoint store
 export const BigToolAnnotation = Annotation.Root({
   // Use the standard MessagesAnnotation for proper message handling
   ...MessagesAnnotation.spec,
@@ -23,6 +24,10 @@ export const BigToolAnnotation = Annotation.Root({
     reducer: addNew,
     default: () => [],
   }),
+  // scratchpad: Annotation<Record<string, any>>({
+  //   reducer: (left, right) => ({ ...left, ...right }),
+  //   default: () => ({}),
+  // }),
 });
 
 export type BigToolState = typeof BigToolAnnotation.State;
@@ -59,6 +64,7 @@ export interface CreateAgentInput {
   prompt?: string;
   options?: CreateAgentOptions;
   store?: BaseStore;
+  checkpointer?: any; // Checkpoint store for state persistence
 }
 
 export interface BigToolConfig extends RunnableConfig {
