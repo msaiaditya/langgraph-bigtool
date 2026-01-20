@@ -1,4 +1,4 @@
-import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation, BaseCheckpointSaver, MessagesAnnotation } from "@langchain/langgraph";
 import {
   StructuredTool,
   Tool,
@@ -59,6 +59,7 @@ export interface CreateAgentInput {
   prompt?: string;
   options?: CreateAgentOptions;
   store?: BaseStore;
+  checkpointer?: BaseCheckpointSaver;
 }
 
 export interface BigToolConfig extends RunnableConfig {

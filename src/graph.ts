@@ -1,4 +1,4 @@
-import { StateGraph, START, END } from "@langchain/langgraph";
+import { StateGraph, START, END, BaseCheckpointSaver, BaseStore } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
@@ -19,7 +19,7 @@ export async function createAgent(
   input: CreateAgentInput,
   workflowOptions: WorkflowOptions = {}
 ) {
-  const { llm, tools, defaultTools, prompt, options = {}, store } = input;
+  const { llm, tools, defaultTools, prompt, options = {}, store, checkpointer } = input;
   const toolRegistry = createToolRegistry(tools);
   const defaultToolRegistry = defaultTools
     ? createToolRegistry(defaultTools)
@@ -138,6 +138,19 @@ export async function createAgent(
     .addEdge("select_tools", "agent")
     .addEdge("tools", "agent");
 
+  const compileOptions: {
+    store?: BaseStore;
+    checkpointer?: BaseCheckpointSaver;
+  } = {};
+
+  if (store) {
+    compileOptions.store = store;
+  }
+
+  if (checkpointer) {
+    compileOptions.checkpointer = checkpointer;
+  }
+
   // Compile with or without store
-  return store ? workflow.compile({ store }) : workflow.compile();
+  return workflow.compile(compileOptions);
 }
